@@ -15,7 +15,7 @@
 ;; - `doom-variable-pitch-font' -- a non-monospace font (where applicable)
 ;; - `doom-big-font' -- used for `doom-big-font-mode'; use this for
 ;;   presentations or streaming.
-;; - `doom-unicode-font' -- for unicode glyphs
+;; - `doom-symbol-font' -- for symbols
 ;; - `doom-serif-font' -- for the `fixed-pitch-serif' face
 ;;
 ;; See 'C-h v doom-font' for documentation and more examples of what they
@@ -23,6 +23,7 @@
 ;;
 ;;(setq doom-font (font-spec :family "Fira Code" :size 12 :weight 'semi-light)
 ;;      doom-variable-pitch-font (font-spec :family "Fira Sans" :size 13))
+(setq doom-font (font-spec :family "monospace" :size 9.0))
 ;;
 ;; If you or Emacs can't find your font, use 'M-x describe-font' to look them
 ;; up, `M-x eval-region' to execute elisp code, and 'M-x doom/reload-font' to
@@ -32,7 +33,14 @@
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
 ;; `load-theme' function. This is the default:
-(setq doom-theme 'doom-molokai)
+;;(set-frame-parameter (selected-frame) 'alpha-background '(90))
+;;(add-to-list 'default-frame-alist '(alpha-background . 50))
+(setq doom-theme 'doom-1337)
+ ;;(setq doom-theme 'doom-tomorrow-night)
+;; (custom-set-faces!
+;; '(default :background "#000000")
+;; '(solaire-default-face :background "#000000"))
+
 
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.
@@ -75,106 +83,125 @@
 ;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
 ;; they are implemented.
 
-;;time
-(setq display-time-mode 1)
-(setq display-time-format "%I:%M:%S")
-(setq display-time-interval 1)
- (defface egoge-display-time
-   '((((type x w32 mac))
-      ;; #060525 is the background colour of my default face.
-      (:foreground "#060525" :inherit bold))
-     (((type tty))
-      (:foreground "red")))
-   "Face used to display the time in the mode line.")
- (setq display-time-string-forms
-       '((propertize (concat " " 24-hours ":" minutes ":" seconds " ")
- 		    'face 'egoge-display-time)))
-(display-time)
+;;follow windows
+(defun after_split-window (&rest _arg)
+"go to new window when you spawn it, and open buffer selector"
+(other-window 1)
+(ibuffer))
 
-;;custom keybindings
-(map! :leader
-      :desc "Search hoogle for Term"
-      "o h" #'hoogle)
+(advice-add 'evil-window-vsplit :after #'after_split-window)
+(advice-add 'evil-window-split :after #'after_split-window)
 
-(map! :leader
-     :desc "insert org drawer"
-     "k b" #'org-insert-drawer)
+;; org mode
+        ;;disable flycheck, company, when using org-mode
+        (add-hook 'org-mode-hook (lambda () (flycheck-mode -1)))
+        (add-hook 'org-mode-hook (lambda () (company-mode -1)))
 
-(map! :leader
-     :desc "haskell run hlint"
-     "k h" #'haskell-check)
-
-(map! :leader
-     :desc "copilot next result"
-     "c n" #'copilot-next-completion)
-
-;;END - custom keybindings
-
-;;HASKELL lsp
-(require 'lsp)
-(require 'lsp-haskell)
-(require 'haskell-mode)
-(require 'lsp-mode)
-(require 'lsp-ui)
-;; Hooks so haskell and literate haskell major modes trigger LSP setup
-(add-hook 'haskell-mode-hook #'lsp)
-(add-hook 'haskell-literate-mode-hook #'lsp)
-
-(setf lsp-haskell-server-path "~/.ghcup/bin/haskell-language-server-9.4.2")
- (setf flycheck-haskell-ghc-executable "~/.ghcup/bin/ghc-9.4.2")
-
-(setenv "PATH" (concat (getenv "PATH") ":/Users/marcel/.ghcup/bin"))
-(setq exec-path (append exec-path '("/Users/marcel/.ghcup/bin")))
-
-(setf haskell-interactive-popup-errors ':false)
-
-;;End - HASKELL lsp
-
-;;C++ lsp
-
-(when (cl-find-if-not #'package-installed-p package-selected-packages)
-  (package-refresh-contents)
-  (mapc #'package-install package-selected-packages))
+        ;;images
+        (setq org-startup-with-inline-images t)
+        (setq org-image-actual-width 300)
 
 
-(which-key-mode)
-(add-hook 'c-mode-hook 'lsp)
-(add-hook 'c++-mode-hook 'lsp)
+;; latex and exporting to pdf
+        ;; alllow keywords for images
+        (setq org-export-allow-bind-keywords t)
+        (setq org-latex-image-default-width "")
 
-(setq gc-cons-threshold (* 100 1024 1024)
-      read-process-output-max (* 1024 1024)
-      treemacs-space-between-root-nodes nil
-      company-idle-delay 0.1
-      company-minimum-prefix-length 1
-      lsp-idle-delay 0.5)  ;; clangd is fast
+        ;;press SPC i l to insert "export" snippit with "latex", and enter cdlatex mode
+        (map! :leader
+                :desc "insert latex"
+                "i l" #'my/insert-latex_export)
 
-(with-eval-after-load 'lsp-mode
-  (add-hook 'lsp-mode-hook #'lsp-enable-which-key-integration)
-  (require 'dap-cpptools)
-  (yas-global-mode))
+        ;;press SPC p l to export to latex
+        (map! :leader
+                :desc "export to latex pdf with pandoc"
+                "p l" #'org-pandoc-export-to-latex-pdf)
+        (map! :leader
+                :desc "export to latex pdf with pandoc and open"
+                "p o" #'org-pandoc-export-to-latex-pdf-and-open)
 
-;;flutter
-(add-hook 'dart-mode-hook 'lsp)
+        (defun my/insert-latex_export ()
+        "insert export latex statement"
+        (interactive)
+        (insert "#+BEGIN_EXPORT latex \n #+END_EXPORT")
+        (evil-previous-line)
+        (evil-insert-state)
+        (cdlatex-mode)
+        (pandoc-mode)
+        (global-prettify-symbols-mode)) ;; \alpha -> a, as a substitute for actually decoding LaTeX
 
-(setq gc-cons-threshold (* 100 1024 1024)
-      read-process-output-max (* 1024 1024))
+        ;; (cdlatex-mode))
+        ;; rebind cdlatex-tab to ; while in cdlatex mode
+        (add-hook 'cdlatex-mode-hook (map! ";" #'cdlatex-tab))
+        (add-hook 'cdlatex-mode-hook (map! "C-;" #'my/insertcomma))
+        (defun my/insertcomma()
+        (interactive)
+        (insert! ";"))
 
 
-;;speedread
-;; (require! 'spray)
+        ;; turn off cd latex mode with SPC k c
+        (map! :leader
+                :desc "sortof reset cdlatex mode"
+                "k c" #'my/resetcdlatex)
 
-(map! :leader
-     :desc "speed read from cursor position"
-     "k s" #'spray-mode)
+        (defun my/resetcdlatex()
+        (interactive)
+        (cdlatex-reset-mode)
+        (add-hook 'cdlatex-mode-hook (map! ";" #'my/insertcomma))
+        (add-hook 'cdlatex-mode-hook (map! "C-;" #'embark-act)))
 
-(setq spray-wpm 600)
 
-;;copilot
-;; accept completion from copilot and fallback to company
-(use-package! copilot
-  :hook (prog-mode . copilot-mode)
-  :bind (("C-TAB" . 'copilot-accept-completion-by-word)
-         ("C-<tab>" . 'copilot-accept-completion-by-word)
-         :map copilot-completion-map
-         ("<tab>" . 'copilot-accept-completion)
-         ("TAB" . 'copilot-accept-completion)))
+        ;;pdf loader
+        ;;(pdf-loader-install)
+
+        ;;fix org mode export to pdf?
+        (require 'ox-latex)
+        (unless (boundp 'org-latex-classes)
+        (setq org-latex-classes nil))
+        (add-to-list 'org-latex-classes
+                '("apa6"
+                        "\\documentclass{apa6}"
+                        ("\\section{%s}" . "\\section*{%s}")
+                        ("\\subsection{%s}" . "\\subsection*{%s}")
+                        ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                        ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                        ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
+        ;;boiler code from http://www.wouterspekkink.org/academia/writing/tool/doom-emacs/2021/02/27/writing-academic-papers-with-org-mode.html
+        ;; helm-bibtex related stuff
+        (after! helm
+        (use-package! helm-bibtex
+        :custom
+        ;; In the lines below I point helm-bibtex to my default library file.
+        (bibtex-completion-bibliography '("~/Zotero/bibtex/library.bib"))
+        (reftex-default-bibliography '("~/Zotero/bibtex/library.bib"))
+        ;; The line below tells helm-bibtex to find the path to the pdf
+        ;; in the "file" field in the .bib file.
+        (bibtex-completion-pdf-field "file")
+        :hook (Tex . (lambda () (define-key Tex-mode-map "\C-ch" 'helm-bibtex))))
+        ;; I also like to be able to view my library from anywhere in emacs, for example if I want to read a paper.
+        ;; I added the keybind below for that.
+        (map! :leader
+                :desc "Open literature database"
+                "o l" #'helm-bibtex)
+        ;; And I added the keybinds below to make the helm-menu behave a bit like the other menus in emacs behave with evil-mode.
+        ;; Basically, the keybinds below make sure I can scroll through my list of references with C-j and C-k.
+        (map! :map helm-map
+                "C-j" #'helm-next-line
+                "C-k" #'helm-previous-line)
+        )
+
+;; Disable mouse (because it's fucking annoying)
+        (use-package inhibit-mouse
+        :ensure t
+        :custom
+        ;; Disable highlighting of clickable text such as URLs and hyperlinks when
+        ;; hovered by the mouse pointer.
+        (inhibit-mouse-adjust-mouse-highlight t)
+
+        ;; Disables the use of tooltips (show-help-function) during mouse events.
+        (inhibit-mouse-adjust-show-help-function t)
+
+        :config
+        (if (daemonp)
+        (add-hook 'server-after-make-frame-hook #'inhibit-mouse-mode)
+        (inhibit-mouse-mode 1)))

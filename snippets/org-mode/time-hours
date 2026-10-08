@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: Current time wo date
+# uuid: td
+# key: td
+# condition: t
+# --
+󰥔 ${1:`(or % (format-time-string "%H:%M:%S"))`}
